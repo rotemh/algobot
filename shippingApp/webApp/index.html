@@ -1,0 +1,178 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+
+    <title>Event Driven Blockchain</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+    <style>
+        .bd-placeholder-img {
+            font-size: 1.125rem;
+            text-anchor: middle;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        @media (min-width: 768px) {
+            .bd-placeholder-img-lg {
+                font-size: 3.5rem;
+            }
+        }
+    </style>
+
+</head>
+<body>
+<script src="algosdk.min.js"></script>
+<script>
+    async function updateAmount(address, boxId) {
+        var acct_info = await algodclient.accountInformation(address);
+        document.getElementById(boxId).innerText = parseInt(acct_info.amount, 10)/1000000;
+    }
+
+    function getTime() {
+        let today = new Date();
+        let date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+        let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+        return date+' '+time;
+    }
+
+    const baseServer = "https://testnet-algorand.api.purestake.io/ps1";
+    const port = "";
+    const token = {'X-API-Key': ''};
+    const algodclient = new algosdk.Algod(token, baseServer, port);
+
+    const address_to_track = "X6E3EZE53KAJRPUWPRLRPRDIGIFIUUVB67LJ4RBA73GJDL5N7DRQ466RAM";
+
+    (async () => {
+        let current_round = await algodclient.status();
+        current_round = current_round.lastRound;
+        console.log(current_round);
+
+        while (0===0) {
+            let temp_round = await algodclient.statusAfterBlock(current_round);
+            temp_round = temp_round.lastRound;
+
+            // update Escrow
+            updateAmount("HN7ZIG4TFEPWHALWQTYUB4S23HBEPHGUL3J7EBO6EAL6H2UDQC5O6ZBTQM", "escrow");
+
+            // update seller
+            updateAmount("PCGYCFY5BL3SBTPJNA56FVA4K2VJ75UCWW7LAV6QPRMJVHXEK4LJHYKKKE", "buyer");
+
+            // update buyer
+            updateAmount("6QX7IOT2AVB7SILICWOUGMKDRVDBZFRFJTCSPZGGSWBRTGTQQXA56NOWNA", "seller");
+
+            // Update Tracking table
+            process_block = function(txn) {
+                // Check that this is from the correct namespace
+                if (address_to_track === txn.payment.to) {
+
+                    // Create the new row
+                    let new_row = document.createElement("tr");
+
+                    // Append relevant cells
+
+                    // Time
+                    let time  =document.createElement("td");
+                    time.innerHTML = getTime();
+                    new_row.appendChild(time);
+
+                    // date
+                    data = JSON.parse(atob(btoa(txn.note)));
+
+                    // Station ID
+                    let station = document.createElement("td");
+                    station.innerHTML = data.s;
+                    new_row.appendChild(station);
+
+                    // Temperature
+                    let temperature = document.createElement("td");
+                    temperature.innerHTML =data.t;
+                    new_row.appendChild(temperature);
+
+                    // TxID
+                    let txid = document.createElement("td");
+                    txid.innerHTML = txn.tx;
+                    new_row.appendChild(txid);
+
+                    // Append to table
+                    let table = document.querySelector('#tracking');
+                    table.appendChild(new_row);
+
+                }
+            };
+
+            let block = await algodclient.block(temp_round);
+            if (block.txns.transactions !== undefined) {
+                block.txns.transactions.forEach(e => process_block(e));
+            }
+
+            current_round += 1;
+        }
+
+    })().catch(e => {
+        console.log(e);
+    });
+</script>
+<div class="d-flex flex-column flex-md-row align-items-center p-3 px-md-4 mb-3 bg-white border-bottom shadow-sm">
+    <h5 class="my-0 mr-md-auto font-weight-normal">Event Driven BlockChain Demo</h5>
+</div>
+
+<div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-center">
+    <h1 class="display-4">Temperature controlled shipment</h1>
+</div>
+
+<div class="container">
+    <div class="card-deck mb-3 text-center">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header">
+                <h4 class="my-0 font-weight-normal">Buyer</h4>
+            </div>
+            <div class="card-body">
+                <h1 class="card-title pricing-card-title" id="buyer"></h1>
+            </div>
+        </div>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header">
+                <h4 class="my-0 font-weight-normal">Escrow</h4>
+            </div>
+            <div class="card-body">
+                <h1 class="card-title pricing-card-title" id="escrow"></h1>
+            </div>
+        </div>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header">
+                <h4 class="my-0 font-weight-normal">Seller</h4>
+            </div>
+            <div class="card-body">
+                <h1 class="card-title pricing-card-title" id="seller"></h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="container">
+    <h2>Tracking Info</h2>
+<div class="table-responsive">
+    <table class="table table-striped table-sm">
+        <thead>
+        <tr>
+            <th>Time</th>
+            <th>Station Id</th>
+            <th>Temperature</th>
+            <th>TxID</th>
+        </tr>
+        </thead>
+        <tbody id="tracking" class="tracking">
+        </tbody>
+    </table>
+</div>
+</div>
+</body>
+</html>
